@@ -2,6 +2,8 @@
 
 A machine learning system that classifies voices/sounds into "Human/Animal" or "Other" categories to control gate access.
 
+> 📄 **For detailed documentation, see [PROJECT_REPORT.md](PROJECT_REPORT.md)**
+
 ## Features
 
 - **Binary Classification**: Distinguishes between Human/Animal voices (gate opens) and Other sounds (gate stays closed)
@@ -83,7 +85,8 @@ python real_time_voice_recognition.py
 - `SAMPLE_RATE`: Audio sample rate (default: 22050 Hz)
 - `CHUNK_DURATION`: Seconds of audio per analysis (default: 2.0)
 - `THRESHOLD`: Classification threshold (default: 0.5)
-- `MIN_VOLUME_THRESHOLD`: Minimum volume to process (default: 0.01)
+- `MIN_VOLUME_THRESHOLD`: Minimum volume to process (default: 0.001)
+- `DEBUG_MODE`: Enable debug output (default: True)
 
 ### 4. Test All Files
 
@@ -162,6 +165,16 @@ Modify the `THRESHOLD` value in `real_time_voice_recognition.py`:
 ### Model Not Found
 - Ensure `voice_classifier_model.h5` and `feature_scaler.pkl` exist
 - Run `model_training.py` first to generate these files
+
+## Documentation
+
+- **README.md**: Quick start guide and usage instructions
+- **PROJECT_REPORT.md**: Comprehensive project documentation including:
+  - System architecture and design
+  - Technical specifications
+  - Performance analysis
+  - Use cases and applications
+  - Future enhancements
 
 ## License
 
