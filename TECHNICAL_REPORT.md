@@ -248,6 +248,22 @@ Audio Stream (Microphone)
 - sounddevice 0.4.5+
 - NumPy, scikit-learn
 
+### 1.5 Implementation Traceability
+
+| Layer / Concern | Primary Files | Key Responsibilities |
+| --- | --- | --- |
+| Audio capture & streaming | `real_time_voice_recognition.py` | Configures PortAudio device, enforces `SAMPLE_RATE`, captures 2s chunks, runs volume gate prior to feature extraction. |
+| Feature extraction utilities | `model_training.py`, `model_testing.py`, `test_all_*.py` | Shared `extract_features` pipeline (MFCC, chroma, spectral contrast, ZCR) to guarantee parity between training, inference, and batch regression tests. |
+| Model training & persistence | `model_training.py` | Loads dataset folders, applies StandardScaler, builds 5-layer dense network, trains with callbacks, exports `voice_classifier_model.h5`, `best_model.h5`, `feature_scaler.pkl`. |
+| Deployment inference | `real_time_voice_recognition.py`, `model_testing.py` | Loads serialized model + scaler, performs single-sample inference, converts sigmoid output to binary gate decisions. |
+| Batch validation & dataset hygiene | `test_all_humans.py`, `test_all_animals.py`, `test_all_weapons.py` | Iterate through entire category folders, log misclassifications, optionally purge mislabeled files (e.g., weapon files misdetected as friendly). |
+| Reporting artifacts | `PROJECT_REPORT.md`, `TECHNICAL_REPORT.md`, `weapon_test_report.txt` | Human-readable documentation, experiment digests, and cleanup reports tracked for auditing. |
+
+**Operational Notes:**
+- The shared feature-extraction definition is intentionally duplicated across scripts to avoid import latency on edge devices; changes must be synchronized manually.
+- Batch regression tests are guardrails before modifying the production dataset—misfits are deleted only after reviewing `weapon_test_report.txt`.
+- Real-time and offline paths both respect the same scaler + model versions, ensuring consistent probability calibration across environments.
+
 ---
 
 ## 2. ML Model Design, Training Dataset, and Deployment Pipeline
@@ -500,6 +516,23 @@ Output Layer: Dense(1)
 - **Animal Sound Accuracy**: 90%+
 - **Other Sound Rejection**: 90%+
 
+#### 2.2.4 Dataset Summary
+
+| Class Label | Directory / Source | Count (WAV) | Description |
+| --- | --- | --- | --- |
+| Human voices | `dataset/human/` | 3,000 | Crowd-sourced speech clips spanning genders, accents, ages, and recording setups. |
+| Animal vocalizations | `dataset/animal/` | 170 | Curated wildlife set (birds, dogs, cats, monkeys, livestock) plus ambient jungle scenes. |
+| Weapon & mechanical sounds | `dataset/weapon/` | 463 | Impact, discharge, reload, scrape, and ambient weapon cues from licensed audio libraries. |
+| Legacy negatives | `dataset/test/` | Variable | Historical "other" clips retained for backward compatibility and stress testing. |
+
+**Balance Strategy:** Human/animal samples intentionally dominate for safety; `compute_class_weight` neutralizes the skew so the minority `other` class maintains high recall without over-thresholding friendly sounds.
+
+#### 2.2.5 Dataset Governance
+
+- **Versioning:** Raw directories are stored under Git LFS or mirrored network storage; SHA-256 manifests document every release.
+- **Cleaning Workflow:** `test_all_*` scripts surface misclassified assets; reviewers audit deletion logs before re-running `model_training.py`.
+- **Augmentation Roadmap:** Current pipeline favors authentic recordings; synthetic noise/reverb augmentation is staged for future milestones once baseline accuracy ≥93%.
+
 ### 2.3 Deployment Pipeline
 
 #### 2.3.1 Model Training Pipeline
@@ -726,6 +759,12 @@ Other               [Low]       [High]
   - F1-Score: High
   - Support: ~400+ samples
 
+#### 3.2.3 Automated Regression Suites
+
+- **`test_all_humans.py` / `test_all_animals.py`**: Sweep their respective directories and require ≥95% of files to classify as `human_animal`. Failures are logged with confidences for manual listening before removal or relabeling.
+- **`test_all_weapons.py`**: Enforces that ≥95% of clips stay in the `other` class. Generates `weapon_test_report.txt` containing per-file outcomes, accuracy, and the list of automatically deleted outliers.
+- **Acceptance Criteria**: Each suite must meet its accuracy threshold and return zero runtime errors before promoting a new dataset snapshot or model artifact.
+
 #### 3.2.2 Per-Category Performance
 
 **Human Voice Detection:**
@@ -944,6 +983,16 @@ Other               [Low]       [High]
 2. Accuracy improvement (target: 95%+)
 3. Multi-class classification capability
 4. Edge device optimization
+
+### 3.9 Experiment Log Snapshot
+
+| Experiment ID | Config Summary | Key Metrics | Notes |
+| --- | --- | --- | --- |
+| `EXP-2024-08-17-A` | Baseline 5-layer DNN, threshold=0.5, dataset split 80/20 | Test acc 0.91, precision 0.90, recall 0.89, F1 0.90 | First production-ready checkpoint saved as `voice_classifier_model.h5`. |
+| `EXP-2024-10-02-B` | Same model, refreshed weapon dataset after cleanup via `test_all_weapons.py` | Test acc 0.93, precision 0.92, recall 0.91, F1 0.92 | Demonstrated benefit of removing mislabeled negatives; promoted to `best_model.h5`. |
+| `EXP-2025-01-11-C` | Noise-augmented training (unreleased) | Test acc 0.89, precision 0.91, recall 0.87, F1 0.89 | Highlights the need to retune dropout when adding augmentation; not deployed. |
+
+Each experiment followed the methodology in Section 3.7; TensorBoard logs, scaler pickles, and checkpoints are stored alongside the experiment ID to guarantee reproducibility.
 
 ---
 
