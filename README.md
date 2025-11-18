@@ -95,10 +95,10 @@ Test all files in a category:
 # Test all human files
 python test_all_humans.py
 
-# Test all animal files (auto-deletes incorrectly classified)
+# Test all animal files 
 python test_all_animals.py
 
-# Test all weapon files (auto-deletes incorrectly classified)
+# Test all weapon files 
 python test_all_weapons.py
 ```
 
